@@ -1,0 +1,14 @@
+COROSHOP — НАСТРОЙКА ЗАКАЗОВ НА VERCEL
+
+1. Распакуйте архив и загрузите ВСЕ содержимое папки coroshop-main в корень GitHub-репозитория coroshop. Важно сохранить assets/, images/ и api/.
+2. Убедитесь, что Vercel подключен к репозиторию coroshop и автоматически публикует изменения.
+3. Откройте Vercel -> Project coroshop -> Settings -> Environment Variables.
+4. Добавьте TELEGRAM_BOT_TOKEN = НОВЫЙ токен от BotFather (старый был раскрыт; перевыпустите его).
+5. Добавьте TELEGRAM_CHAT_ID = 353934036.
+6. Выберите Production (и Preview, если нужно) для обеих переменных. Сохраните.
+7. В Deployments выполните Redeploy последнего деплоя, чтобы новые переменные применились.
+8. Откройте https://coroshop.vercel.app/ и отправьте тестовый заказ. Убедитесь, что сообщение пришло в Telegram.
+9. Если ошибка сохраняется: Vercel -> Logs, фильтр /api/order. Проверьте, что бот запущен через /start и имеет право писать в указанный чат.
+
+Никакой отдельный домен или Cloudflare не требуется. НЕ вставляйте токен в index.html, GitHub или backend-config.js.
+Событие Meta Pixel Lead вызывается только после успешного ответа функции.

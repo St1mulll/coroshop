@@ -16,7 +16,7 @@
       setError('Перевірте ім’я та номер телефону.'); return;
     }
     const endpoint = String(window.ORDER_API_URL || '').trim();
-    if (!/^https:\/\/[^\s]+$/.test(endpoint)) {
+    if (endpoint !== '/api/order' && !/^https:\/\/[^\s]+$/.test(endpoint)) {
       setError('Надсилання замовлень ще не підключено. Зателефонуйте нам: +380 75 683 52 55.');
       return;
     }

@@ -1,1 +1,2 @@
-window.ORDER_API_URL = ""; // Після публікації Worker вставте сюди його HTTPS URL
+// Same-origin Vercel Serverless Function; no Telegram credentials in public files.
+window.ORDER_API_URL = '/api/order';
