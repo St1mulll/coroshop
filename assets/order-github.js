@@ -16,7 +16,7 @@
       setError('Перевірте ім’я та номер телефону.'); return;
     }
     const endpoint = String(window.ORDER_API_URL || '').trim();
-    if (endpoint !== '/api/order' && !/^https:\/\/[^\s]+$/.test(endpoint)) {
+    if (!/^https:\/\/[^\s]+$/.test(endpoint) && endpoint !== '/api/order') {
       setError('Надсилання замовлень ще не підключено. Зателефонуйте нам: +380 75 683 52 55.');
       return;
     }
@@ -27,7 +27,13 @@
     try {
       const response = await fetch(endpoint, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name, phone, quantity: 1, website: form.elements.namedItem('website')?.value || ''}),
+        body: JSON.stringify({
+          name, phone,
+          model: String(window.ORDER_PRODUCT || 'Nasal Soother — 469 грн'),
+          page: String(window.ORDER_SITE || location.origin + location.pathname),
+          quantity: Number(form.elements.namedItem('quantity')?.value || 1),
+          website: form.elements.namedItem('website')?.value || ''
+        }),
         signal: AbortSignal.timeout(15000)
       });
       let result;

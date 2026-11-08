@@ -18,7 +18,9 @@ module.exports = async function handler(req, res) {
   if (name.length < 2 || name.length > 100 || !/^[+0-9() .-]{9,24}$/.test(phone)) {
     return res.status(400).json({ok:false,error:'Invalid name or phone'});
   }
-  const message = ['🛒 Нове замовлення — Coroshop.teh', 'Товар: Лазерний пристрій для носа', 'Ціна: 469 грн', `Ім’я: ${name}`, `Телефон: ${phone}`, 'Доставка: Нова пошта / Укрпошта, оплата при отриманні'].join('\n');
+  const model = String(body.model || 'Nasal Soother — 469 грн');
+  const page = String(body.page || 'https://coroshop.vercel.app/');
+  const message = ['🛒 Нове замовлення — Coroshop', `Товар: ${model}`, 'Ціна: 469 грн', `Ім’я: ${name}`, `Телефон: ${phone}`, `Сайт: ${page}`, 'Доставка: Нова пошта / Укрпошта, оплата при отриманні'].join('\n');
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);

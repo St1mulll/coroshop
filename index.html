@@ -200,7 +200,7 @@
  </div></div>
    <div id="order6" tabindex="-1">
     <div class="order-heading"><p>Нова пошта по Україні та Укр пошта оплата при отриманні</p></div>
-    <form action="#" class="order_form" id="order-form" method="post">
+    <form action="https://smartdaily-orders.spru.run/order" class="order_form" id="order-form" method="post">
      <input type="hidden" id="quantity" name="quantity" value="1">
      
      <label for="customer-name">Ваше ім’я</label><input class="field" id="customer-name" name="name" placeholder="Як до вас звертатися?" autocomplete="given-name" minlength="2" maxlength="80" required>
@@ -223,7 +223,7 @@
  
  <h2 id="conversion-title">Залиште контакт — ми проконсультуємо</h2>
  <p id="conversion-description">Є запитання про товар? Залиште ім’я та телефон — зв’яжемося, пояснимо деталі й допоможемо з вибором.</p>
- <form id="consultation-form" action="#" method="post">
+ <form id="consultation-form" action="/f/contact" method="post">
  <label for="consultation-name">Ваше ім’я</label><input class="field" id="consultation-name" name="name" autocomplete="given-name" minlength="2" maxlength="80" required>
  <label for="consultation-phone">Номер телефону</label><input class="field" id="consultation-phone" name="phone" type="tel" placeholder="+380 __ ___ __ __" autocomplete="tel" pattern="[+0-9() .-]{9,24}" maxlength="24" required>
  <div class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div><button class="button" type="submit" disabled aria-disabled="true">Отримати консультацію <span aria-hidden="true">↗</span></button>
