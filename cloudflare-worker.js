@@ -1,26 +1,68 @@
-// Cloudflare Worker. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID as secrets/variables.
-// Set ALLOWED_ORIGIN to your GitHub Pages site origin, e.g. https://username.github.io
+// Cloudflare Worker. Проксіює заявку на центральний приймач замовлень.
+// Токен Telegram-бота тут не потрібен — він живе лише на сервері приймача.
+const RECEIVER = 'https://smartdaily-orders.spru.run/order';
+
+function respond(data, status, headers = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Cache-Control': 'no-store',
+      ...headers,
+    },
+  });
+}
+
 export default {
- async fetch(request, env) {
-  const origin = request.headers.get('Origin') || '';
-  const allowed = env.ALLOWED_ORIGIN || '';
-  const headers = {'Content-Type':'application/json','Access-Control-Allow-Origin':allowed,'Vary':'Origin','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'};
-  const respond=(data,status=200)=>new Response(JSON.stringify(data),{status,headers});
-  if (!allowed || origin !== allowed) return respond({error:'Origin not allowed'},403);
-  if (request.method === 'OPTIONS') return new Response(null,{status:204,headers});
-  if (request.method !== 'POST') return respond({error:'Method not allowed'},405);
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return respond({error:'Server is not configured'},503);
-  if (Number(request.headers.get('content-length')||0)>2048) return respond({error:'Too large'},413);
-  let data;try{data=await request.json()}catch{return respond({error:'Invalid JSON'},400)}
-  if (data.website) return respond({ok:true}); // honeypot
-  const name=String(data.name||'').trim().slice(0,80);
-  const phone=String(data.phone||'').trim().slice(0,24);
-  if (name.length<2 || !/^[+0-9() .-]{9,24}$/.test(phone)) return respond({error:'Invalid name or phone'},400);
-  const msg=`Нове замовлення\nТовар: Лазерний пристрій для носа\nЦіна: 469 грн\nКількість: 1\nІм’я: ${name}\nТелефон: ${phone}`;
-  try {
-   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text:msg})});
-   const result=await r.json();if(!r.ok||!result.ok)return respond({error:'Telegram delivery failed'},502);
-   return respond({ok:true});
-  } catch {return respond({error:'Telegram unavailable'},502)}
- }
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') return respond({ok: true}, 204);
+    if (request.method !== 'POST') return respond({ok: false, error: 'Method not allowed'}, 405);
+
+    let body = {};
+    try { body = await request.json(); } catch { return respond({ok: false, error: 'Invalid JSON'}, 400); }
+    if (body.website) return respond({ok: true}, 200);
+
+    const name = String(body.name || '').trim();
+    const phone = String(body.phone || '').trim();
+    if (name.length < 2 || !/^[+0-9() .-]{9,24}$/.test(phone)) {
+      return respond({ok: false, error: 'Invalid name or phone'}, 400);
+    }
+
+    const payload = {
+      name, phone,
+      model: String(body.model || 'Nasal Soother — 469 грн'),
+      price: Number(body.price || 469),
+      qty: Number(body.qty || body.quantity || 1),
+      supplier: String(body.supplier || 'Coroshop'),
+      page: String(body.page || 'https://coroshop.vercel.app/'),
+    };
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      let response;
+      try {
+        response = await fetch(RECEIVER, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } finally { clearTimeout(timer); }
+      const text = await response.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch {}
+      if (!response.ok || data.ok === false) {
+        console.error('Receiver failed:', response.status, text.slice(0, 300));
+        return respond({ok: false, error: data.error || 'Receiver unavailable'}, 502);
+      }
+      return respond({ok: true, id: data.id}, 200);
+    } catch (error) {
+      console.error('Receiver request error:', error.message);
+      return respond({ok: false, error: 'Receiver temporarily unavailable'}, 502);
+    }
+  },
 };

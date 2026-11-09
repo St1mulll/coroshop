@@ -1,44 +1,60 @@
-// Vercel Node.js function. Configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
-// in Vercel Project Settings -> Environment Variables, then redeploy.
+// Vercel-функція: проксіює заявку на центральний приймач замовлень.
+// Токен Telegram-бота тут не потрібен — він живе лише на сервері приймача.
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ok:false,error:'Method not allowed'});
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(204).end();
   }
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return res.status(503).json({ok:false,error:'Telegram is not configured'});
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ok: false, error: 'Method not allowed'});
+  }
+  const target = process.env.ORDER_RECEIVER_URL || 'https://smartdaily-orders.spru.run/order';
   let body = req.body;
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { return res.status(400).json({ok:false,error:'Invalid JSON'}); } }
-  if (!body || typeof body !== 'object') return res.status(400).json({ok:false,error:'Invalid request'});
-  if (body.website) return res.status(200).json({ok:true}); // honeypot
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { return res.status(400).json({ok: false, error: 'Invalid JSON'}); }
+  }
+  if (!body || typeof body !== 'object') return res.status(400).json({ok: false, error: 'Invalid request'});
+  if (body.website) return res.status(200).json({ok: true});
   const name = String(body.name || '').trim();
   const phone = String(body.phone || '').trim();
-  if (name.length < 2 || name.length > 100 || !/^[+0-9() .-]{9,24}$/.test(phone)) {
-    return res.status(400).json({ok:false,error:'Invalid name or phone'});
+  if (name.length < 2 || !/^[+0-9() .-]{9,24}$/.test(phone)) {
+    return res.status(400).json({ok: false, error: 'Invalid name or phone'});
   }
-  const model = String(body.model || 'Nasal Soother — 469 грн');
-  const page = String(body.page || 'https://coroshop.vercel.app/');
-  const message = ['🛒 Нове замовлення — Coroshop', `Товар: ${model}`, 'Ціна: 469 грн', `Ім’я: ${name}`, `Телефон: ${phone}`, `Сайт: ${page}`, 'Доставка: Нова пошта / Укрпошта, оплата при отриманні'].join('\n');
+  const payload = {
+    name, phone,
+    model: String(body.model || 'Nasal Soother — 469 грн'),
+    price: Number(body.price || 469),
+    qty: Number(body.qty || body.quantity || 1),
+    supplier: String(body.supplier || 'Coroshop'),
+    page: String(body.page || 'https://coroshop.vercel.app/')
+  };
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timer = setTimeout(() => controller.abort(), 15000);
     let response;
     try {
-      response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({chat_id:chatId,text:message}),signal:controller.signal
+      response = await fetch(target, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
-    } finally { clearTimeout(timeout); }
-    const data = await response.json();
-    if (!response.ok || data.ok !== true) {
-      console.error('Telegram sendMessage failed:', response.status, data.description);
-      return res.status(502).json({ok:false,error:'Telegram delivery failed'});
+    } finally { clearTimeout(timer); }
+    const text = await response.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch {}
+    if (!response.ok || data.ok === false) {
+      console.error('Receiver failed:', response.status, text.slice(0, 300));
+      return res.status(502).json({ok: false, error: data.error || 'Receiver unavailable'});
     }
-    return res.status(200).json({ok:true});
+    return res.status(200).json({ok: true, id: data.id});
   } catch (error) {
-    console.error('Telegram request error:', error.message);
-    return res.status(502).json({ok:false,error:'Telegram temporarily unavailable'});
+    console.error('Receiver request error:', error.message);
+    return res.status(502).json({ok: false, error: 'Receiver temporarily unavailable'});
   }
 };
